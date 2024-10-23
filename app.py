@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-import csv
+import pandas as pd
 
 st.title("Quote Scraper")
 
@@ -9,7 +9,8 @@ user_input = st.text_input("Enter a string:")
 
 if st.button("Scrape Quotes"):
     if user_input:
-        dashed_string = "-".join(user_input.split())
+        # Normalize the input string: replace spaces and periods with hyphens, and convert to lowercase
+        dashed_string = "-".join(user_input.replace(".", "").lower().split())
         quotes = []
 
         for i in range(1, 11):
@@ -31,21 +32,30 @@ if st.button("Scrape Quotes"):
                         for category in category_elements:
                             categories.append(category.text)
 
-                    categories_str = ', '.join(categories)
-                    quotes.append([quote_text, categories_str])
+                    # Each row is a quote followed by its categories
+                    quotes.append([quote_text] + categories)
 
+        # Displaying quotes and categories
         st.write("Quotes and Categories:")
-        for quote, categories in quotes:
-            st.write(f"- **Quote:** {quote}")
-            st.write(f"  **Categories:** {categories}")
+        for quote_row in quotes:
+            st.write(f"- *Quote:* {quote_row[0]}")
+            st.write(f"  *Categories:* {', '.join(quote_row[1:])}")
 
-        # Download CSV option
-        csv_data = [["Quote", "Categories"]] + quotes
-        csv_string = "\n".join([",".join(row) for row in csv_data])
+        # Creating headers based on the maximum number of categories found
+        max_categories = max(len(quote_row) - 1 for quote_row in quotes)
+        headers = ["Quote"] + [f"Category {i+1}" for i in range(max_categories)]
+        
+        # Creating a DataFrame to handle variable-length categories
+        df = pd.DataFrame(quotes, columns=headers)
+
+        # Exporting DataFrame to CSV format
+        csv_data = df.to_csv(index=False)
+
+        # Providing a download button for the CSV file
         st.download_button(
             label="Download CSV",
-            data=csv_string,
-            file_name="quotes_with_categories.csv",
+            data=csv_data,
+            file_name=f"quotes_with_{user_input}.csv",
             mime="text/csv",
         )
     else:
